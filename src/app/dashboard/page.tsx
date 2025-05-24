@@ -43,6 +43,18 @@ export default function DashboardPage() {
     fetchData();
   }, [router]);
 
+  const handleDelete = async (id: number) => {
+    const confirmed = window.confirm('هل أنت متأكد أنك تريد حذف هذه الفاتورة؟');
+    if (!confirmed) return;
+
+    const { error } = await supabase.from('invoices').delete().eq('id', id);
+    if (error) {
+      alert('حدث خطأ أثناء الحذف: ' + error.message);
+    } else {
+      setInvoices((prev) => prev.filter((invoice) => invoice.id !== id));
+    }
+  };
+
   return (
     <div className="p-6 max-w-3xl mx-auto">
       <h1 className="text-2xl font-bold mb-4">مرحبا، {userEmail}</h1>
@@ -87,12 +99,20 @@ export default function DashboardPage() {
                   className="w-24 h-24 rounded"
                 />
               )}
-              <button
-                onClick={() => router.push(`/dashboard/invoices/${invoice.id}`)}
-                className="mt-2 text-blue-600 underline"
-              >
-                عرض التفاصيل
-              </button>
+              <div className="mt-2 flex gap-4">
+                <button
+                  onClick={() => router.push(`/dashboard/invoices/${invoice.id}`)}
+                  className="text-blue-600 underline"
+                >
+                  عرض التفاصيل
+                </button>
+                <button
+                  onClick={() => handleDelete(invoice.id)}
+                  className="text-red-600 underline"
+                >
+                  حذف
+                </button>
+              </div>
             </div>
           ))}
         </div>
