@@ -25,18 +25,20 @@ export default function CreateInvoicePage() {
     const { data, error: insertError } = await supabase
       .from('invoices')
       .insert({
-        title,
+        name: title,
         user_id: user.id,
       })
-      .select()
-      .single();
+      .select();
 
     setLoading(false);
 
     if (insertError) {
       setError(insertError.message);
-    } else if (data) {
-      router.push(`/dashboard/invoices/${data.id}`);
+      console.error('Insert error:', insertError.message);
+    } else if (data && data.length > 0) {
+      const newInvoice = data[0];
+      console.log("✅ فاتورة جديدة:", newInvoice);
+      router.push(`/dashboard/invoices/${newInvoice.id}`);
     }
   };
 
