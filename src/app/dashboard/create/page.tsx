@@ -4,94 +4,69 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabaseClient';
 
-export default function CreateInvoice() {
+export default function CreateInvoicePage() {
   const [title, setTitle] = useState('');
-  const [dueDate, setDueDate] = useState('');
-  const [file, setFile] = useState<File | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const router = useRouter();
 
-  const handleCreate = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-      alert("لم يتم تسجيل الدخول");
+  const handleCreate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    setLoading(true);
+
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    if (userError || !user) {
+      setError('يجب تسجيل الدخول أولاً');
+      setLoading(false);
       return;
     }
 
-    let imageUrl = null;
+    const { data, error: insertError } = await supabase
+      .from('invoices')
+      .insert({
+        title,
+        user_id: user.id,
+      })
+      .select()
+      .single();
 
-    if (file) {
-      const fileExt = file.name.split('.').pop();
-      const fileName = `${Date.now()}.${fileExt}`;
-      const filePath = `${user.id}/${fileName}`;
+    setLoading(false);
 
-      const { error: uploadError } = await supabase.storage
-        .from('invoices')
-        .upload(filePath, file);
-
-      if (uploadError) {
-        alert('فشل رفع الصورة: ' + uploadError.message);
-        return;
-      }
-
-      const { data: publicUrlData } = supabase.storage
-        .from('invoices')
-        .getPublicUrl(filePath);
-
-      imageUrl = publicUrlData.publicUrl;
-    }
-
-    const { error } = await supabase.from('invoices').insert({
-      user_id: user.id,
-      title,
-      due_date: dueDate,
-      image_url: imageUrl,
-    });
-
-    if (error) {
-      alert('فشل حفظ الفاتورة: ' + error.message);
-    } else {
-      router.push('/dashboard');
+    if (insertError) {
+      setError(insertError.message);
+    } else if (data) {
+      router.push(`/dashboard/invoices/${data.id}`);
     }
   };
 
   return (
-    <div className="p-6 max-w-md mx-auto">
-      <h1 className="text-2xl font-bold mb-4">إنشاء فاتورة جديدة</h1>
-
-      <label className="block mb-2 font-medium">اسم الفاتورة:</label>
-      <input
-        type="text"
-        className="w-full border p-2 mb-4 rounded"
-        value={title}
-        onChange={(e) => setTitle(e.target.value)}
-      />
-
-      <label className="block mb-2 font-medium">تاريخ الاستحقاق:</label>
-      <input
-        type="date"
-        className="w-full border p-2 mb-4 rounded"
-        value={dueDate}
-        onChange={(e) => setDueDate(e.target.value)}
-      />
-
-      <label className="block mb-2 font-medium">صورة الفاتورة (اختياري):</label>
-      <input
-        type="file"
-        accept="image/*"
-        onChange={(e) => {
-          if (e.target.files && e.target.files.length > 0) {
-            setFile(e.target.files[0]);
-          }
-        }}
-        className="w-full border p-2 mb-4 rounded"
-      />
-
-      <button
-        onClick={handleCreate}
-        className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700"
+    <div className="min-h-screen flex items-center justify-center bg-gray-100 p-6">
+      <form
+        onSubmit={handleCreate}
+        className="bg-white p-8 rounded shadow-md w-full max-w-md"
       >
-        إنشاء الفاتورة
-      </button>
+        <h1 className="text-xl font-bold mb-6 text-center">إنشاء فاتورة جديدة</h1>
+
+        <label className="block mb-2 text-sm font-medium">اسم الفاتورة</label>
+        <input
+          type="text"
+          required
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          className="w-full p-2 mb-4 border rounded"
+        />
+
+        {error && <p className="text-red-600 text-sm mb-4">{error}</p>}
+
+        <button
+          type="submit"
+          disabled={loading}
+          className="w-full bg-blue-600 text-white p-2 rounded hover:bg-blue-700"
+        >
+          {loading ? 'جارٍ الإنشاء...' : 'إنشاء'}
+        </button>
+      </form>
     </div>
   );
 }
