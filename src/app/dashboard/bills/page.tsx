@@ -55,7 +55,15 @@ export default function BillsPage() {
         return;
       }
 
-      imageUrl = supabase.storage.from('invoices').getPublicUrl(filePath).publicURL;
+      let imageUrl = '';
+if (filePath) {
+  const { data: publicData, error: publicError } = supabase.storage.from('invoices').getPublicUrl(filePath);
+  if (publicError) {
+    console.error("Error getting public URL:", publicError.message);
+  } else {
+    imageUrl = publicData.publicUrl;
+  }
+}
     }
 
     const { error } = await supabase.from('bills').insert({
