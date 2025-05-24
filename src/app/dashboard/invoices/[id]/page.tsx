@@ -24,13 +24,20 @@ export default function InvoiceDetailsPage() {
   const [year, setYear] = useState<number>(2024);
   const [file, setFile] = useState<File | null>(null);
   const [filesList, setFilesList] = useState<any[]>([]);
+  const [uploadNotice, setUploadNotice] = useState<string | null>(null);
+
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => {
+      console.log("My User ID:", data.user?.id);
+    });
+  }, []);
 
   useEffect(() => {
     const fetchInvoice = async () => {
       const { data, error } = await supabase
         .from('invoices')
         .select('*')
-        .eq('id', Number(id))
+        .eq('id', id)
         .limit(1);
 
       if (error) {
@@ -59,7 +66,7 @@ export default function InvoiceDetailsPage() {
       const { data, error } = await supabase
         .from('invoice_files')
         .select('*')
-        .eq('invoice_id', Number(id))
+        .eq('invoice_id', id)
         .order('uploaded_at', { ascending: false });
 
       if (!error && data) {
@@ -86,17 +93,21 @@ export default function InvoiceDetailsPage() {
     setLoading(true);
     setError(null);
 
-    const { error } = await supabase
-      .from('invoices')
-      .update(formData)
-      .eq('id', Number(id));
+    const { data: { user } } = await supabase.auth.getUser();
+if (!user) return setError('لم يتم تسجيل الدخول');
 
-    if (error) {
-      setError('فشل في حفظ التعديلات');
-      console.error(error.message);
-    } else {
-      router.push('/dashboard');
-    }
+const { error } = await supabase
+  .from('invoices')
+  .update(formData)
+  .eq('id', Number(id))
+  .eq('user_id', user.id); // هذا هو المهم
+
+if (error) {
+  setError('فشل في حفظ التعديلات');
+  console.error(error.message);
+} else {
+  router.push('/dashboard');
+}
 
     setLoading(false);
   };
@@ -112,6 +123,21 @@ export default function InvoiceDetailsPage() {
     if (!file) return;
 
     setUploading(true);
+    setUploadNotice(null);
+
+    const { data: duplicate } = await supabase
+      .from('invoice_files')
+      .select('*')
+      .eq('invoice_id', id)
+      .eq('month', month)
+      .eq('year', year)
+      .maybeSingle();
+
+    if (duplicate) {
+      setUploadNotice('⚠️ تم بالفعل رفع فاتورة لهذا الشهر والسنة.');
+      setUploading(false);
+      return;
+    }
 
     const fileExt = file.name.split('.').pop();
     const filePath = `${id}/${Date.now()}.${fileExt}`;
@@ -138,6 +164,7 @@ export default function InvoiceDetailsPage() {
         file_type: fileExt,
         month,
         year,
+        uploaded_at: new Date(),
       });
 
     if (insertError) {
@@ -146,11 +173,13 @@ export default function InvoiceDetailsPage() {
 
     setFile(null);
     setUploading(false);
+
     const { data, error } = await supabase
       .from('invoice_files')
       .select('*')
-      .eq('invoice_id', Number(id))
+      .eq('invoice_id', id)
       .order('uploaded_at', { ascending: false });
+
     if (!error && data) {
       setFilesList(data);
     }
@@ -179,6 +208,7 @@ export default function InvoiceDetailsPage() {
     <div className="max-w-2xl mx-auto p-6 bg-white rounded shadow">
       <h1 className="text-2xl font-bold mb-4">تفاصيل الفاتورة</h1>
       <h2 className="text-lg font-semibold mb-4">اسم الفاتورة: {formData.name}</h2>
+      {uploadNotice && <p className="text-red-600 mb-4">{uploadNotice}</p>}
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
           <label className="block mb-1">رابط الشركة</label>
@@ -251,8 +281,6 @@ export default function InvoiceDetailsPage() {
           </select>
         </div>
 
-        {error && <p className="text-red-600">{error}</p>}
-
         <button
           type="submit"
           className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
@@ -269,6 +297,7 @@ export default function InvoiceDetailsPage() {
         ) : (
           <div className="grid gap-4 md:grid-cols-3">
             {filesList.map((file) => (
+              
               <div key={file.id} className="border p-2 rounded">
                 <p className="text-sm mb-1">📅 {file.month}/{file.year}</p>
                 {file.file_type === 'pdf' ? (
@@ -277,6 +306,7 @@ export default function InvoiceDetailsPage() {
                     target="_blank"
                     rel="noreferrer"
                     className="text-blue-600 underline"
+                    
                   >
                     عرض PDF
                   </a>
@@ -285,8 +315,12 @@ export default function InvoiceDetailsPage() {
                     src={file.file_url}
                     alt="صورة الفاتورة"
                     className="w-full h-auto rounded"
-                  />
-                )}
+                    onError={(e) => {
+        e.currentTarget.style.display = 'none';
+        console.warn('❌ لم تُعرض الصورة:', file.file_url);
+      }}
+    />
+  )}
                 <button
                   onClick={() => handleDeleteFile(file.id)}
                   className="text-red-600 text-sm mt-2 underline"
