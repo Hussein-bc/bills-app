@@ -3,6 +3,11 @@
 import { useEffect, useState, ChangeEvent } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabaseClient';
+import {
+  primaryButton, dangerButton, formInput,
+  cardContainer, fileCard, backButton,
+  sectionHeader
+} from '@/components/ui/ui';
 
 export default function InvoiceDetailsPage() {
   const params = useParams();
@@ -68,6 +73,7 @@ export default function InvoiceDetailsPage() {
         .select('*')
         .eq('invoice_id', id)
         .order('uploaded_at', { ascending: false });
+      //console.log('📦 الملفات القادمة من Supabase:', data);
 
       if (!error && data) {
         setFilesList(data);
@@ -94,20 +100,20 @@ export default function InvoiceDetailsPage() {
     setError(null);
 
     const { data: { user } } = await supabase.auth.getUser();
-if (!user) return setError('لم يتم تسجيل الدخول');
+    if (!user) return setError('لم يتم تسجيل الدخول');
 
-const { error } = await supabase
-  .from('invoices')
-  .update(formData)
-  .eq('id', Number(id))
-  .eq('user_id', user.id); // هذا هو المهم
+    const { error } = await supabase
+      .from('invoices')
+      .update(formData)
+      .eq('id', Number(id))
+      .eq('user_id', user.id); // هذا هو المهم
 
-if (error) {
-  setError('فشل في حفظ التعديلات');
-  console.error(error.message);
-} else {
-  router.push('/dashboard');
-}
+    if (error) {
+      setError('فشل في حفظ التعديلات');
+      console.error(error.message);
+    } else {
+      router.push('/dashboard');
+    }
 
     setLoading(false);
   };
@@ -297,7 +303,7 @@ if (error) {
         ) : (
           <div className="grid gap-4 md:grid-cols-3">
             {filesList.map((file) => (
-              
+
               <div key={file.id} className="border p-2 rounded">
                 <p className="text-sm mb-1">📅 {file.month}/{file.year}</p>
                 {file.file_type === 'pdf' ? (
@@ -306,21 +312,22 @@ if (error) {
                     target="_blank"
                     rel="noreferrer"
                     className="text-blue-600 underline"
-                    
+
                   >
                     عرض PDF
                   </a>
                 ) : (
-                  <img
-                    src={file.file_url}
-                    alt="صورة الفاتورة"
-                    className="w-full h-auto rounded"
-                    onError={(e) => {
-        e.currentTarget.style.display = 'none';
-        console.warn('❌ لم تُعرض الصورة:', file.file_url);
-      }}
-    />
-  )}
+
+                  <a href={file.file_url} target="_blank" rel="noopener noreferrer">
+                    <img
+                      src={file.file_url}
+                      alt="صورة الفاتورة"
+                      className="w-full h-auto rounded cursor-pointer hover:opacity-80 transition"
+                    />
+                  </a>
+
+
+                )}
                 <button
                   onClick={() => handleDeleteFile(file.id)}
                   className="text-red-600 text-sm mt-2 underline"
@@ -375,5 +382,6 @@ if (error) {
         </button>
       </div>
     </div>
+
   );
 }
