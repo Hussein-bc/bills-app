@@ -87,15 +87,17 @@ export default function InvoiceDetailsPage() {
   }, [id]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-  const target = e.target as HTMLInputElement;
-  const { name, value, type } = target;
-  const checked = type === 'checkbox' ? target.checked : undefined;
+    const target = e.target as HTMLInputElement;
+    const name = target.name;
+    const value = target.value;
+    const type = target.type;
 
-  setFormData((prev) => ({
-    ...prev,
-    [name]: type === 'checkbox' ? checked : value,
-  }));
-};
+    setFormData((prev) => ({
+      ...prev,
+      [name]: type === 'checkbox' ? target.checked : value,
+    }));
+  };
+
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
